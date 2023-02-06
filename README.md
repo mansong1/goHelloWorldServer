@@ -11,8 +11,8 @@ $ ./go-sample-app
 ```
 
 ```bash
-$ curl http://localhost:8080?name=Nofar
-Hello, Nofar 
+$ curl http://localhost:8080?name=Martin
+Hello, Martin 
 Test1
 ``` 
 
