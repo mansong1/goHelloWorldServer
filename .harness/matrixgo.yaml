@@ -1,0 +1,82 @@
+pipeline:
+  name: Matrix - Go
+  identifier: matrixgo
+  projectIdentifier: martinansong
+  orgIdentifier: CI_Training
+  description: Harness Pipeline created via Terraform
+  properties:
+    ci:
+      codebase:
+        connectorRef: github
+        repoName: mansong1/goHelloWorldServer
+        build: <+input>
+  stages:
+    - stage:
+        identifier: Build
+        name: Build Go App
+        spec:
+          cloneCodebase: true
+          execution:
+            steps:
+              - stepGroup:
+                  name: Setup GoTools
+                  identifier: Setup_GoTools
+                  steps:
+                    - step:
+                        identifier: Setup_Go_Version
+                        name: Setup Go Version
+                        spec:
+                          uses: actions/setup-go@v3
+                          with:
+                            go-version: <+matrix.goVersion>
+                        type: Action
+                    - step:
+                        type: Action
+                        name: Setup Gotestsum
+                        identifier: Setup_Gotestsum
+                        spec:
+                          uses: autero1/action-gotestsum@v1.0.0
+                          with:
+                            gotestsum_version: 1.9.0
+              - step:
+                  failureStrategies: []
+                  identifier: Run_Unit_Tests
+                  name: Run Unit Tests
+                  spec:
+                    shell: Bash
+                    command: |-
+                      set +e
+                      gotestsum --format=standard-verbose --junitfile unit-tests.xml
+                    reports:
+                      type: JUnit
+                      spec:
+                        paths:
+                          - "*.xml"
+                  type: Run
+                  when:
+                    stageStatus: Success
+              - step:
+                  identifier: Go_Build
+                  name: Go Build
+                  spec:
+                    shell: Bash
+                    command: |-
+                      set +e
+                      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -tags netgo
+                  type: Run
+          platform:
+            arch: Amd64
+            os: Linux
+          runtime:
+            spec: {}
+            type: Cloud
+        strategy:
+          matrix:
+            goVersion:
+              - 1.14
+              - 1.15
+              - 1.16
+              - 1.17
+              - 1.18
+              - 1.19
+        type: CI
