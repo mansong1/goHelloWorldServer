@@ -1,0 +1,115 @@
+pipeline:
+  name: Go Hello World server
+  identifier: gohelloworldserver
+  projectIdentifier: martinansong
+  orgIdentifier: CI_Training
+  description: Harness Pipeline created via Terraform
+  stages:
+    - stage:
+        identifier: Build
+        name: Build Go App
+        spec:
+          cloneCodebase: true
+          execution:
+            steps:
+              - step:
+                  failureStrategies: []
+                  identifier: Run_Unit_Tests
+                  name: Run Unit Tests
+                  spec:
+                    command: |-
+                      set +e
+                      go get gotest.tools/gotestsum
+                      gotestsum --format=standard-verbose --junitfile unit-tests.xml
+                      exit 0
+                    connectorRef: Docker_Hub
+                    image: golang:1.15
+                    privileged: false
+                    reports:
+                      spec:
+                        paths:
+                          - "*.xml"
+                      type: JUnit
+                    shell: Sh
+                  type: Run
+                  when:
+                    stageStatus: Success
+              - step:
+                  identifier: Go_Build
+                  name: Go Build
+                  spec:
+                    command: |-
+                      set +e
+                      go get gotest.tools/gotestsum
+                      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -tags netgo
+                      exit 0
+                    connectorRef: Docker_Hub
+                    image: golang:1.15
+                    privileged: false
+                    shell: Sh
+                  type: Run
+              - step:
+                  failureStrategies: []
+                  identifier: Build_and_push_image_to_DockerHub
+                  name: Build and push image to DockerHub
+                  spec:
+                    connectorRef: DockerHub_mansong
+                    repo: mansong/godemo
+                    tags:
+                      - <+project.identifier>_<+pipeline.sequenceId>
+                    optimize: true
+                  type: BuildAndPushDockerRegistry
+                  when:
+                    stageStatus: Success
+          platform:
+            arch: Amd64
+            os: Linux
+          runtime:
+            spec: {}
+            type: Cloud
+        type: CI
+    - stage:
+        description: ""
+        identifier: Integration_tests
+        name: Integration tests
+        spec:
+          cloneCodebase: false
+          execution:
+            steps:
+              - step:
+                  identifier: serverservice
+                  name: Run server service
+                  spec:
+                    connectorRef: account.Nofar_Dockerhub
+                    image: mansong/godemo:<+project.identifier>_<+pipeline.sequenceId>
+                    shell: Sh
+                    imagePullPolicy: Always
+                  type: Background
+              - step:
+                  identifier: Run_1
+                  name: curl test
+                  spec:
+                    command: |-
+                      sleep 5
+                      curl serverservice:8080
+                    connectorRef: Docker_Hub
+                    image: curlimages/curl:7.69.1
+                    privileged: false
+                    shell: Sh
+                  type: Run
+          platform:
+            arch: Amd64
+            os: Linux
+          runtime:
+            spec: {}
+            type: Cloud
+        type: CI
+        when:
+          pipelineStatus: Success
+          condition: <+codebase.build.type>=="PR"
+  properties:
+    ci:
+      codebase:
+        connectorRef: account.mansong
+        repoName: goHelloWorldServer
+        build: <+input>
